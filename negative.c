@@ -34,7 +34,7 @@ static void connection_handler(bool connected) {
 }
 
 static void background_layer_redraw_proc(Layer *layer, GContext *ctx) {
-  graphics_context_set_fill_color(ctx, GColorLightGray);
+  graphics_context_set_fill_color(ctx, COLOR_FALLBACK(GColorLightGray, GColorWhite));
   for (uint8_t x = 0; x < 18; x++) {
    for (uint8_t y = 0; y < 21; y++) {
      graphics_fill_rect(ctx, GRect(x * 8 + inset_active, y * 8 + inset_active,
@@ -61,6 +61,7 @@ static void numbers_layer_redraw_proc(Layer *layer, GContext *ctx) {
     graphics_fill_rect(ctx, GRect(8 + inset_inactive, 8 + inset_inactive, 8 - 2 * inset_inactive, 8 - 2 * inset_inactive), 0, GCornerNone);
   }
   BatteryChargeState battery_state = battery_state_service_peek();
+#if defined(PBL_COLOR)
   if (battery_state.is_charging) {
     graphics_context_set_fill_color(ctx, GColorGreen);
   } else if (battery_state.charge_percent <= 20) {
@@ -68,6 +69,9 @@ static void numbers_layer_redraw_proc(Layer *layer, GContext *ctx) {
   } else {
     graphics_context_set_fill_color(ctx, GColorLightGray);
   }
+#elif defined(PBL_BW)
+  graphics_context_set_fill_color(ctx, GColorWhite);
+#endif
    graphics_fill_rect(ctx, GRect(16 * 8 + inset_active, 8 + inset_active,
                 8 - 2 * inset_active, 8 - 2 * inset_active), 0, GCornerNone);
   graphics_context_set_fill_color(ctx, GColorBlack);
@@ -101,16 +105,16 @@ static void window_unload(Window *window) {
 
 static void init(void) {
   window = window_create();
-  tick_timer_service_subscribe(MINUTE_UNIT, (TickHandler)update_time_digits);
-  time_t unix_time = time(NULL);
-  struct tm *current_time = localtime(&unix_time);
-  update_time_digits(current_time, MINUTE_UNIT);
   window_set_window_handlers(window, (WindowHandlers) {
     .load = window_load,
     .unload = window_unload,
   });
   const bool animated = true;
   window_stack_push(window, animated);
+  time_t unix_time = time(NULL);
+  struct tm *current_time = localtime(&unix_time);
+  update_time_digits(current_time, MINUTE_UNIT);
+  tick_timer_service_subscribe(MINUTE_UNIT, (TickHandler)update_time_digits);
   connection_service_subscribe((ConnectionHandlers) {
     .pebble_app_connection_handler = connection_handler
   });
